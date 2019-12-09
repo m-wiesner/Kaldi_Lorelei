@@ -163,4 +163,18 @@ if [ $stage -le 10 ]; then
   touch exp/tri5_ali/.done
 fi
 
-exit 0;
+if [ $stage -le 11 ]; then
+  echo ---------------------------------------------------------------------
+  echo "Starting Chain TDNNF training on" `date`
+  echo ---------------------------------------------------------------------
+  ./local/run_tdnnf_a.sh --affix 2h_a --train-set ${langid}_train --langdir data/lang_${langid}
+fi
+
+if [ $stage -le 12 ]; then
+  echo ---------------------------------------------------------------------
+  echo "Decoding" on `date`
+  echo ---------------------------------------------------------------------  
+  for ds in data/${langid}_dev data/${langid}_eval; do
+    ./local/decode_tdnnf.sh --langid ${langid} ${ds} exp/chain/tdnn2h_a_sp   
+  done
+fi

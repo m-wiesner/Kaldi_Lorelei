@@ -13,9 +13,9 @@ echo "AFFIX: ${affix}"
 echo "data/dict_${langid}${affix}"
 
 data=${!langid}
-script=${langid}_script
-charset=${!script}
 wordlists=data/local/${langid}/text
+
+echo ${charset}
 
 langdata=data/${langid}
 mkdir -p ${langdata}
@@ -33,28 +33,25 @@ awk '{print $1" "$1}' ${langdata}/wav.scp > ${langdata}/utt2spk
 ./utils/spk2utt_to_utt2spk.pl ${langdata}/utt2spk > ${langdata}/spk2utt
 
 # Make text 
-wordlists=data/local/${langid}/text
 mkdir -p ${wordlists}
 echo "Searching in ${data} for text ..."
 find ${data}/download/txt -name "*.txt" > ${wordlists}/${langid}_files.scp
-./local/set0-to-text.py data/local/${langid}/text/${langid}_files.scp data/local/${langid}/text/text
+./local/unicode_filter_punct.py data/local/${langid}/text/${langid}_files.scp data/local/${langid}/text/text
 
 # Get tokens and filter by script
 cut -d' ' -f2- data/local/${langid}/text/text | ngram-count -order 1 -text - -write data/local/${langid}/text/tokens
-./local/filter.py data/local/${langid}/text/tokens "is${charset}" data/local/${langid}/text/vocab
+./local/filter.py data/local/${langid}/text/tokens data/local/${langid}/text/vocab
 awk '{print $1}' data/local/${langid}/text/vocab > data/local/${langid}/text/words
 
 LC_ALL= python local/clean_transcript.py \
   ${!langid}/asr_files/transcription_nopunc.txt data/local/${langid}/text/words \
   > ${langdata}/text
 
-
 localdict=data/local/${langid}/dict_${langid}${affix}
 mkdir -p $localdict
 paste -d' ' data/local/${langid}/text/words \
   <(uroman/bin/uroman.pl < data/local/${langid}/text/words | LC_ALL= sed 's/./& /g') \
   | sort > ${localdict}/lexicon.txt
-
 
 # Make splits
 echo "Using user specified subsets ..."

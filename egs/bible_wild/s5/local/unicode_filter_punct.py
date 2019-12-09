@@ -4,35 +4,24 @@ import sys
 import argparse
 import os
 import string
-from functools import partial
-import LangFilters as lf
-
+import unicodedata
 
 def parse_input():
     parser = argparse.ArgumentParser()
     parser.add_argument("keys", help="File with paths to files to process")
     parser.add_argument("text", help="Kaldi format text file output")
-    parser.add_argument('--script', default='isLatin')
     return parser.parse_args()
 
-def _filter(s, script=None):
-    if script is not None:
-        return s.isalnum() or s.isspace() or _isJoin(s)
-    else:
-        return s.isalnum() or s.isspace() or _isJoin(s) or script(s)
+# Keep Markings such as vowel signs, all letters, and decimal numbers 
+VALID_CATEGORIES = ('Mc', 'Mn', 'Ll', 'Lm', 'Lo', 'Lt', 'Lu', 'Nd', 'Zs')
 
-def _isJoin(s):
-    if len(s) == 0:
-        return False
 
-    for c in s:
-        if ord(c) not in range(8203, 8206):
-            return False 
-    return True
+def _filter(s):
+    return unicodedata.category(s) in VALID_CATEGORIES
+
 
 def main():
     args = parse_input()
-    filterfun = partial(_filter, script=getattr(lf, args.script))
     odir = os.path.dirname(args.text)
     if not os.path.exists(odir) and odir != "":
         os.makedirs(odir)  
@@ -53,9 +42,8 @@ def main():
                 utt_num = 0
                 for l in fi:
                     l_new = ''.join(
-                        [i for i in filter(filterfun, l.strip().replace('-', ' '))]
+                        [i for i in filter(_filter, l.strip().replace('-', ' '))]
                     ).lower()
-                    #filter(_filter, l.strip().replace("-", " "))).lower()
                     if l_new.strip() != "":
                         print(u"{}_{:03} {}".format(text_id, utt_num, l_new), file=fo)
                         utt_num += 1

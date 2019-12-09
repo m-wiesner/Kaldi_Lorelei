@@ -1,26 +1,16 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import argparse
-import string
 import sys
-import LangFilters as lf
-from functools import partial
+import unicodedata
 
 
-def _filter(s, script=None):
-    if script is not None:
-        return s.isalnum() or s.isspace() or _isJoin(s)
-    else:
-        return s.isalnum() or s.isspace() or _isJoin(s) or script(s)
+# Keep Markings such as vowel signs, all letters, and decimal numbers 
+VALID_CATEGORIES = ('Mc', 'Mn', 'Ll', 'Lm', 'Lo', 'Lt', 'Lu', 'Nd', 'Zs')
 
-def _isJoin(s):
-    if len(s) == 0:
-        return False
 
-    for c in s:
-        if ord(c) not in range(8203, 8206):
-            return False 
-    return True
+def _filter(s):
+    return unicodedata.category(s) in VALID_CATEGORIES
 
 
 def main():
@@ -30,7 +20,6 @@ def main():
     parser.add_argument('--script', default='isLatin')
     args = parser.parse_args()
 
-    filterfun = partial(_filter, script=getattr(lf, args.script))
     words = set()
     with open(args.lexicon, 'r', encoding='utf-8') as f:
         for l in f:
@@ -38,7 +27,7 @@ def main():
 
     with open(args.text_orig, 'r', encoding='utf-8') as f:
         for l in f:
-            key, val = _read_entry(l, filterfun)
+            key, val = _read_entry(l, _filter)
             if key == None:
                 continue;
             if len(val.split()) == 0:
@@ -53,6 +42,7 @@ def main():
                 print(val.split()[-1])
             else:
                 print('<unk>')
+
 
 def _read_entry(l, filterfun):
     try:
