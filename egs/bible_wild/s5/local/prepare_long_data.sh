@@ -20,11 +20,11 @@ mkdir -p ${langdata}
 
 #Make wav.scp
 if [ $stage -le 0 ]; then
-  files=( `find -L ${data}/wav -name *.wav` )
+  files=( `find -L ${data}/wav -name *.mp3` )
   for f in ${files[@]}; do
     fname=`basename $f`
-    fname=${fname%%.wav}   
-    echo "${fname} sox ${f} -t wav -r 16000 -|"
+    fname=${fname%%.mp3}
+    echo "${fname} ffmpeg -v 8 -i ${f} -f wav -acodec pcm_s16le - | sox -t wav - -r 16000 -c 1 -t wav -|"
   done | sort > ${langdata}/wav.scp
   
   # Make utt2spk and spk2utt

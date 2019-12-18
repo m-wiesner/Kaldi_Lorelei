@@ -70,13 +70,15 @@ def main():
         segments = recoid2verses[recoid]
         word = ''
         ctm_idx = 0
-        seg_start = 0.0
         for seg in segments:
             uttid, text = seg
-            for w in text:
+            for idx_w, w in enumerate(text):
                 while(word != w and ctm_idx < len(ctm)):
                     start, dur, word = ctm[ctm_idx]
                     ctm_idx += 1
+                    if idx_w == 0:
+                        seg_start = start
+            
             end = float(start) + float(dur) 
             segments_dict[uttid] = '{} {} {:.2f} {:.2f}'.format(
                 uttid, recoid, seg_start, end,

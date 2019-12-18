@@ -18,7 +18,7 @@
 cmd=run.pl
 nj=50
 online_ivector_dir=
-scale_opts='--transition-scale=1.0 --acoustic-scale=1.0 --self-loop-scale=1.0'
+scale_opts='--transition-scale=1.0 --self-loop-scale=1.0'
 stage=0
 
 . ./utils/parse_options.sh
@@ -39,9 +39,9 @@ mkdir -p ${expdir}
 
 if [ $stage -le 0 ]; then
   LC_ALL= python local/segment_text_by_chapter.py ${raw_data} > ${data_seg}/text
-  cat ${data_seg}/text | ./utils/sym2int.pl -f 2- ${lang}/words.txt |\
-    ./utils/apply_map.pl -f 2- <(cut -d' ' -f2- ${lang}/phones/align_lexicon.int) \
-    > ${expdir}/text.phn.int          
+  cat ${data_seg}/text | ./utils/sym2int.pl -f 2- ${lang}/words.txt > ${expdir}/text.int
+  #./utils/apply_map.pl -f 2- <(cut -d' ' -f2- ${lang}/phones/align_lexicon.int) \
+  #> ${expdir}/text.phn.int          
 fi
 
 online_ivector_opts=""
@@ -50,22 +50,26 @@ if [ ! -z $online_ivector_dir ]; then
 fi
 
 if [ $stage -le 1 ]; then
-  ./steps/nnet3/align.sh ${online_ivector_opts} \
+  ./steps/nnet3/align_lats.sh ${online_ivector_opts} \
     --scale-opts "$scale_opts" \
+    --acoustic-scale 1.0 \
     --cmd $cmd --nj ${nj} \
-    --retry-beam 100 \
     ${data} ${lang} ${src} ${expdir}
 fi
 
 if [ $stage -le 2 ]; then
   frameshift=`cat ${src}/frame_subsampling_factor | awk '{s=$0; print s*0.01}'` 
-  ali-to-phones --frame-shift=$frameshift --ctm-output=true\
-    ${src}/final.mdl ark:"gunzip -c ${expdir}/ali.*.gz |" ${expdir}/ctm  
+  lattice-align-words-lexicon ${lang}/phones/align_lexicon.int ${src}/final.mdl \
+    ark:"gunzip -c ${expdir}/lat.*.gz |" ark:- |\
+    lattice-to-ctm-conf --frame-shift=$frameshift ark:- ${expdir}/ctm  
+
+  #ali-to-phones --frame-shift=$frameshift --ctm-output=true\
+  #  ${src}/final.mdl ark:"gunzip -c ${expdir}/ali.*.gz |" ${expdir}/ctm  
 fi
 
 if [ $stage -le 3 ]; then
   python local/make_segments_from_ctm_and_ref_text.py \
-    ${expdir}/text.phn.int ${expdir}/ctm ${data_seg}/segments 
+    ${expdir}/text.int ${expdir}/ctm ${data_seg}/segments 
 fi
 
  
