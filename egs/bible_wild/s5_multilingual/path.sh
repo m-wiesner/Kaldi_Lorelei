@@ -14,6 +14,6 @@ export VENV=/export/b09/mwiesner/LORELEI_2019_test/LORELEI/tools/venv_lorelei/bi
 #export ROOT=`pwd`/../../..
 #export VENV=${ROOT}/tools/venv_lorelei/bin/activate
 source ${VENV}
-export PATH=../../../../../src/g2p:${PATH}
+export PATH=${KALDI_ROOT}/tools/zeroshot_g2p:${PATH}
 
 export LC_ALL=C
