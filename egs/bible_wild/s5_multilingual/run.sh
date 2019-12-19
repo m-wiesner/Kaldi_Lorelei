@@ -2,6 +2,7 @@
 
 . ./path.sh
 . ./cmd.sh
+. ./lexicon.conf
 
 langid=multi
 affix=
@@ -37,7 +38,7 @@ done
 if [ $stage -le 0 ]; then
   echo "Preparing data"
   for l in ${langs[@]}; do 
-    ./local/prepare_bible_data.sh --langid ${l} --affix "${affix}";
+    ./local/prepare_bible_data.sh --langid ${l} --affix "${affix}" --lexicon ${!l};
   done
 fi
 
@@ -148,9 +149,9 @@ if [ $stage -le 8 ]; then
   echo ---------------------------------------------------------------------
   echo "Starting (lda_mllt) triphone training in exp/tri4 on" `date`
   echo ---------------------------------------------------------------------
-  #steps/align_si.sh \
-  #  --boost-silence $boost_sil --nj $train_nj --cmd "$train_cmd" \
-  #  ${traindir} ${langdir} exp/tri3 exp/tri3_ali
+  steps/align_si.sh \
+    --boost-silence $boost_sil --nj $train_nj --cmd "$train_cmd" \
+    ${traindir} ${langdir} exp/tri3 exp/tri3_ali
 
   steps/train_lda_mllt.sh \
     --boost-silence $boost_sil --cmd "$train_cmd" \

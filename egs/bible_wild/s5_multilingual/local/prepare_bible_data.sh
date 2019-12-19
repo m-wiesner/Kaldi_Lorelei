@@ -6,6 +6,7 @@
 
 langid=spanish
 affix=
+lexicon=
 
 . ./utils/parse_options.sh
 
@@ -50,15 +51,27 @@ cut -d' ' -f2- data/local/${langid}/text/text | ngram-count -order 1 -text - -wr
 ./local/filter.py data/local/${langid}/text/tokens data/local/${langid}/text/vocab
 awk '{print $1}' data/local/${langid}/text/vocab > data/local/${langid}/text/words
 
-LC_ALL= python local/clean_transcript.py \
-  ${!langid}/asr_files/transcription_nopunc.txt data/local/${langid}/text/words \
-  > ${datadir}/text
-
 localdict=data/local/${langid}/dict_${langid}${affix}
 mkdir -p $localdict
-paste -d' ' data/local/${langid}/text/words \
-  <(uroman/bin/uroman.pl < data/local/${langid}/text/words | LC_ALL= sed 's/./& /g') \
-  | sort > ${localdict}/lexicon.txt
+if [ ! -z $lexicon ]; then 
+  LC_ALL= python local/prepare_babel_lexicon.py ${lexicon} > ${localdict}/lexicon.raw 
+  ./local/transform_4_g2p.py ${localdict}/lexicon.raw ${localdict}/transformed_lexicon.txt
+  ./local/train_g2p.sh ${localdict}/transformed_lexicon.txt exp/g2p_${langid} exp/g2p_${langid}/bible_words
+  ./local/apply_g2p.sh data/local/${langid}/text/words exp/g2p_${langid} exp/g2p_${langid}/bible_words
+  
+  awk -F '\t' '(NR==FNR){a[$1]=$0; next} {if($1 in a){print a[$1]}else{print $1"\t"$3}}' \
+    ${localdict}/transformed_lexicon.txt exp/g2p_${langid}/bible_words/lexicon_out.1 \
+    | awk '(NF>1)' > ${localdict}/lexicon.txt   
+else
+  paste -d' ' data/local/${langid}/text/words \
+    <(uroman/bin/uroman.pl < data/local/${langid}/text/words | LC_ALL= sed 's/./& /g') \
+    | sort > ${localdict}/lexicon.txt
+fi
+
+LC_ALL= python local/clean_transcript.py \
+  ${!langid}/asr_files/transcription_nopunc.txt ${localdict}/lexicon.txt \
+  > ${datadir}/text
+
 
 # Make splits
 echo "Using user specified subsets ..."
