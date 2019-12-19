@@ -23,6 +23,9 @@ mkdir -p ${datadir}
 
 echo "Lang data: ${langdata}"
 
+###############################################################################
+#                Make Kaldi Data Directory for All Language Data              #
+###############################################################################
 #Make wav.scp
 files=( `find -L ${langdata}/wav -name "*.mp3"` )
 for f in ${files[@]}; do
@@ -53,12 +56,22 @@ awk '{print $1}' data/local/${langid}/text/vocab > data/local/${langid}/text/wor
 
 localdict=data/local/${langid}/dict_${langid}${affix}
 mkdir -p $localdict
+
+# Get pronunciations.  If a path to a lexicon is set, then we should use that
+# If the file does not exist then it must be created. We assume the crosslingual
+# lexicon creation method in the paper:
+#  ZERO-SHOT PRONUNCIATION LEXICONS FOR CROSS-LANGUAGE ACOUSTIC MODELTRANSFER
+# Otherwise, just make a graphemic lexicon using uroman (universally transliterated) 
 if [ ! -z $lexicon ]; then 
-  LC_ALL= python local/prepare_babel_lexicon.py ${lexicon} > ${localdict}/lexicon.raw 
-  ./local/transform_4_g2p.py ${localdict}/lexicon.raw ${localdict}/transformed_lexicon.txt
-  ./local/train_g2p.sh ${localdict}/transformed_lexicon.txt exp/g2p_${langid} exp/g2p_${langid}/bible_words
-  ./local/apply_g2p.sh data/local/${langid}/text/words exp/g2p_${langid} exp/g2p_${langid}/bible_words
-  
+  # If the file does not exist it must be created
+  if [ ! -f $lexicon ]; then
+    ./local/prepare_xlingual_lexicon.sh --langid ${langid} data/local/${langid}/text/words exp/xlingual_lexicon || exit 1; 
+  else
+    LC_ALL= python local/prepare_babel_lexicon.py ${lexicon} > ${localdict}/lexicon.raw 
+    ./local/transform_4_g2p.py ${localdict}/lexicon.raw ${localdict}/transformed_lexicon.txt
+    ./local/train_g2p.sh ${localdict}/transformed_lexicon.txt exp/g2p_${langid} exp/g2p_${langid}/bible_words
+    ./local/apply_g2p.sh data/local/${langid}/text/words exp/g2p_${langid} exp/g2p_${langid}/bible_words
+  fi
   awk -F '\t' '(NR==FNR){a[$1]=$0; next} {if($1 in a){print a[$1]}else{print $1"\t"$3}}' \
     ${localdict}/transformed_lexicon.txt exp/g2p_${langid}/bible_words/lexicon_out.1 \
     | awk '(NF>1)' > ${localdict}/lexicon.txt   
@@ -68,12 +81,14 @@ else
     | sort > ${localdict}/lexicon.txt
 fi
 
+# Get text
 LC_ALL= python local/clean_transcript.py \
   ${!langid}/asr_files/transcription_nopunc.txt ${localdict}/lexicon.txt \
   > ${datadir}/text
 
-
-# Make splits
+###############################################################################
+#                                   Make splits
+###############################################################################
 echo "Using user specified subsets ..."
 cp -r ${datadir} ${datadir}_train
 cp -r ${datadir} ${datadir}_dev
@@ -94,6 +109,9 @@ eval_keys=data/local/${langid}/eval.keys
 ./utils/fix_data_dir.sh ${datadir}_dev
 ./utils/fix_data_dir.sh ${datadir}_eval
 
+############################################################################### 
+#                       Prepare Dictionary
+###############################################################################
 # Get training words
 dict=data/dict_${langid}${affix}
 mkdir -p ${dict}

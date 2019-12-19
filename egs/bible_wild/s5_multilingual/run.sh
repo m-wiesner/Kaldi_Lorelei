@@ -21,6 +21,7 @@ numGaussMLLT=100000
 numLeavesSAT=20000
 numGaussSAT=200000
 numLeavesChain=3500
+phonemic=true
 
 . ./utils/parse_options.sh
 
@@ -38,7 +39,11 @@ done
 if [ $stage -le 0 ]; then
   echo "Preparing data"
   for l in ${langs[@]}; do 
-    ./local/prepare_bible_data.sh --langid ${l} --affix "${affix}" --lexicon ${!l};
+    lex_opts=""
+    if $phonemic; then
+      lex_opts="--lexicon ${!l}"
+    fi
+    ./local/prepare_bible_data.sh --langid ${l} --affix "${affix}" ${lex_opts}
   done
 fi
 
@@ -209,7 +214,11 @@ if [ $stage -le 12 ]; then
       lang=data/lang_${l}
       model=exp/chain/tdnn1h_c_sp   
       if [ ! -d data/${l}_train ]; then
-        ./local/prepare_bible_data.sh --langid ${l}
+        lex_opts=""
+        if $phonemic; then
+          lex_opts="--lexicon exp/xlingual_lexicon/${l}/lexicon.txt" # Pool of training examples
+        fi
+        ./local/prepare_bible_data.sh --langid ${l} --lexicon ${lex_opts} 
       fi
       
       # Check that there is a trained language model. If not, train one.
